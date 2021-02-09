@@ -1,0 +1,135 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - livefire_answerfile.yml
+  tasks:
+    - name: Register compute manager at site A
+      nsxt_fabric_compute_managers:
+          hostname: "{{ hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          validate_certs: "{{ validate_certs }}"
+          display_name: "{{ item.display_name }}"
+          server: "{{ item.mgmt_ip }}"
+          origin_type: "{{ item.origin_type }}"
+          credential:
+            credential_type: "{{ item.credential_type }}"
+            username: "{{ item.username }}"
+            password: "{{ item.password }}"
+          state: present
+      with_items:
+        - "{{compute_managers_sitea}}"
+
+    - name: Create IP Pools at Site A
+      nsxt_ip_pools:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        display_name: "{{ item.display_name }}"
+        subnets: "{{ item.subnets }}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ ip_pools_sitea  }}"
+  
+
+    - name: Create uplink profiles at Site A
+      nsxt_uplink_profiles:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: False
+        resource_type: UplinkHostSwitchProfile
+        display_name: "{{item.display_name}}"
+        teaming: "{{item.teaming}}"
+        transport_vlan: "{{item.transport_vlan}}"
+        state: "present"
+        named_teamings: "{{item.named_teamings}}"
+      with_items:
+        - "{{uplink_profiles_sitea}}"
+
+    - name: Create transport zones at Site A
+      nsxt_transport_zones:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_type: "TransportZone"
+        display_name: "{{ item.display_name }}"
+        description: "{{ item.description }}"
+        transport_type: "{{ item.transport_type }}"
+        host_switch_name: "{{ item.host_switch_name }}"
+        uplink_teaming_policy_names: "{{item.uplink_teaming_policy_names}}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ transport_zones_sitea }}"
+      register: sitea_tzs
+
+    - name: Create Transport Node Profiles at Site A
+      nsxt_transport_node_profiles:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_type: TransportNodeProfile
+        display_name: "{{ item.display_name }}"
+        description: "{{ item.description }}"
+        host_switch_spec:
+          resource_type: StandardHostSwitchSpec
+          host_switches: "{{ item.host_switches }}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ transport_node_profiles_sitea }}"
+
+    - name: Create edge transport nodes
+      nsxt_transport_nodes:
+        hostname: "{{hostname}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        validate_certs: False
+        display_name: "{{item.display_name}}"
+        description: "Edge transport node ansible"
+        host_switch_spec:
+          resource_type: StandardHostSwitchSpec
+          host_switches: "{{item.host_switches}}"
+        transport_zone_endpoints: "{{item.transport_zone_endpoints}}"
+        state: present
+      with_items:
+        - "{{edge_transport_nodes_sitea}}"
+      register: edge_sitea
+      ignore_errors: True
+   
+    - name: Pause for 1 minute so that edge nodes are ready
+      pause:
+        minutes: 1
+
+    - name: Add edge cluster at Site A
+      nsxt_edge_clusters:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        display_name: "{{ item.display_name }}"
+        members: "{{ item.members }}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ edge_clusters_sitea }}"
+      register: edge_cluster_sitea
+   
+    - name: Pause for 5 minutes so that the edge cluster enforcement point is available
+      pause:
+        minutes: 5
+
+    - name: Create Gateways (Routers)at Site A
+      uri:
+        method: PATCH
+        url: "https://{{ hostname }}/policy/api/v1/infra/"
+        user: "{{ username }}"
+        password: "{{ password }}"
+        body: "{{sitea_gateways}}"
+        body_format: json
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200
+
