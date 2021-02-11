@@ -98,7 +98,6 @@
       with_items:
         - "{{edge_transport_nodes_sitea}}"
       register: edge_sitea
-      ignore_errors: True
    
     - name: Pause for 1 minute so that edge nodes are ready
       pause:
