@@ -6,7 +6,7 @@ state: "present"
 
 compute_managers_sitea:
 - display_name: vcsa-01a
-  mgmt_ip: 192.168.110.22
+  mgmt_ip: vcsa-01a.corp.local
   origin_type: vCenter
   credential_type: UsernamePasswordLoginCredential
   username: administrator@vsphere.local
