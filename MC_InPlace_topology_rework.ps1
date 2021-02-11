@@ -35,6 +35,7 @@ $Url = $uriP + "/api/4.0/edges/edge-1/vnics/5"
 try { [xml]$response = Invoke-WebRequest -Uri $Url -Method:Delete -Headers $head  } catch {
       $_.Exception.Response}
 
+Get-NsxLogicalRouter -Name sitea-dlr | Remove-NsxLogicalRouter -Confirm:$false 
 
 $LSuapp = Get-NsxTransportZone -name universal-tz | New-NsxLogicalSwitch -Name u-app
 $LSudb = Get-NsxTransportZone -name universal-tz | New-NsxLogicalSwitch -Name u-db
@@ -77,6 +78,7 @@ get-vm -Name db-* | Get-NetworkAdapter | Set-NetworkAdapter -PortGroup ( $LSudb 
 get-vm -Name app-* | Get-NetworkAdapter | Set-NetworkAdapter -PortGroup ( $LSuapp | Get-NsxBackingPortGroup ) -Confirm:$false
 get-vm -Name backend-1 | Get-NetworkAdapter | Set-NetworkAdapter -PortGroup ( $LSube1 | Get-NsxBackingPortGroup ) -Confirm:$false
 get-vm -Name backend-2 | Get-NetworkAdapter | Set-NetworkAdapter -PortGroup ( $LSube2 | Get-NsxBackingPortGroup ) -Confirm:$false
+
 
 Get-NsxLogicalSwitch -Name dlr-transit | Remove-NsxLogicalSwitch -Confirm:$false
 Get-NsxLogicalSwitch -Name sitea-app | Remove-NsxLogicalSwitch -Confirm:$false
