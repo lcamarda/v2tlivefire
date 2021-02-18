@@ -1,6 +1,6 @@
 
 #Disclaimer: This product is not supported by VMware. It is a sample script put together to give an example on how to add IPsets containing the translated IP to security groups with dynamic membership criteria in NSXv
-#Usage example: nsxv-secgroups-to-ipsets.ps1 -vc vcsa-01a.corp.local -vcusr administrator@vsphere.local -vcpsw VMware1!  -nsx nsxvmgr-01a.corp.local -nsxusr admin -nsxpsw VMware1!VMware1! -sgname security_group_name
+#Usage example: .\nsxv-secgroups-to-ipsets.ps1 -vc vcsa-01a.corp.local -vcusr administrator@vsphere.local -vcpsw VMware1!  -nsx nsxvmgr-01a.corp.local -nsxusr admin -nsxpsw VMware1!VMware1! -sgname security_group_name
 
 param($vc, $vcusr, $vcpsw, $nsx , $nsxusr, $nsxpsw, $sgname)
 
