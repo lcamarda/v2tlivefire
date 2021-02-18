@@ -33,10 +33,10 @@ ip_pools_siteb:
 - display_name: "TEP-SITEB-IP-POOL"
   subnets:
   - allocation_ranges:
-    - start: "192.168.230.110"
-      end: "192.168.230.140"
-    cidr: "192.168.230.0/24"
-    gateway_ip: "192.168.230.1"
+    - start: "192.168.231.110"
+      end: "192.168.231.140"
+    cidr: "192.168.231.0/24"
+    gateway_ip: "192.168.231.1"
 
 transport_zones_sitea:
   - display_name: VLAN-EDGE-SITEA-TZ
@@ -89,7 +89,7 @@ uplink_profiles_siteb:
           uplink_type: PNIC
       policy: LOADBALANCE_SRCID
     named_teamings: []
-    transport_vlan: 0
+    transport_vlan: 231
 
  
 transport_node_profiles_sitea:
