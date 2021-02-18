@@ -1,0 +1,69 @@
+- hosts: 127.0.0.1
+  connection: local
+  become: yes
+  vars_files:
+    - livefire_answerfile.yml
+  tasks:
+    - name: Register compute manager at site B
+      nsxt_fabric_compute_managers:
+          hostname: "{{ hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          validate_certs: "{{ validate_certs }}"
+          display_name: "{{ item.display_name }}"
+          server: "{{ item.mgmt_ip }}"
+          origin_type: "{{ item.origin_type }}"
+          credential:
+            credential_type: "{{ item.credential_type }}"
+            username: "{{ item.username }}"
+            password: "{{ item.password }}"
+          state: present
+      with_items:
+        - "{{compute_managers_siteb}}"
+
+    - name: Create IP Pools for TEPs at Site B
+      nsxt_ip_pools:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        display_name: "{{ item.display_name }}"
+        subnets: "{{ item.subnets }}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ ip_pools_siteb  }}"
+
+    - name: Create uplink profiles for esx hosts at Site B
+      nsxt_uplink_profiles:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: False
+        resource_type: UplinkHostSwitchProfile
+        display_name: "{{item.display_name}}"
+        teaming: "{{item.teaming}}"
+        transport_vlan: "{{item.transport_vlan}}"
+        state: "present"
+        named_teamings: "{{item.named_teamings}}"
+      with_items:
+        - "{{uplink_profiles_siteb}}"
+
+
+    - name: Create Transport Node Profile for cluster at Site B
+      nsxt_transport_node_profiles:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        resource_type: TransportNodeProfile
+        display_name: "{{ item.display_name }}"
+        description: "{{ item.description }}"
+        host_switch_spec:
+          resource_type: StandardHostSwitchSpec
+          host_switches: "{{ item.host_switches }}"
+        state: "{{ state }}"
+      with_items:
+        - "{{ transport_node_profiles_siteb }}"
+
+
+

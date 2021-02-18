@@ -12,6 +12,13 @@ compute_managers_sitea:
   username: administrator@vsphere.local
   password: VMware1!
 
+compute_managers_siteb:
+- display_name: vcsa-01b
+  mgmt_ip: vcsa-01b.corp.local
+  origin_type: vCenter
+  credential_type: UsernamePasswordLoginCredential
+  username: administrator@vsphere.local
+  password: VMware1!
 
 ip_pools_sitea:
 - display_name: "TEP-SITEA-IP-POOL"
@@ -21,6 +28,15 @@ ip_pools_sitea:
       end: "192.168.135.140"
     cidr: "192.168.135.0/24"
     gateway_ip: "192.168.135.1"
+
+ip_pools_siteb:
+- display_name: "TEP-SITEB-IP-POOL"
+  subnets:
+  - allocation_ranges:
+    - start: "192.168.230.110"
+      end: "192.168.230.140"
+    cidr: "192.168.230.0/24"
+    gateway_ip: "192.168.230.1"
 
 transport_zones_sitea:
   - display_name: VLAN-EDGE-SITEA-TZ
@@ -63,6 +79,19 @@ uplink_profiles_sitea:
     named_teamings: []
     transport_vlan: 135
 
+uplink_profiles_siteb:
+  - display_name: esxi-siteb-profile
+    teaming:
+      active_list:
+        - uplink_name: uplink-1
+          uplink_type: PNIC
+        - uplink_name: uplink-2
+          uplink_type: PNIC
+      policy: LOADBALANCE_SRCID
+    named_teamings: []
+    transport_vlan: 0
+
+ 
 transport_node_profiles_sitea:
   - display_name: esxi-sitea-tn-profile
     description: Compute Transport Node Profile
@@ -83,6 +112,29 @@ transport_node_profiles_sitea:
         ip_assignment_spec:
           resource_type: StaticIpPoolSpec
           ip_pool_name: TEP-SITEA-IP-POOL
+
+
+transport_node_profiles_siteb:
+  - display_name: esxi-siteb-tn-profile
+    description: Compute Transport Node Profile
+    host_switches:
+      - host_switch_profiles:
+          - name: esxi-siteb-profile
+            type: UplinkHostSwitchProfile
+        host_switch_name: SiteB-vDS-01
+        host_switch_type: VDS
+        host_switch_mode: STANDARD
+        uplinks:
+          - vds_uplink_name: Uplink 1
+            uplink_name: uplink-1
+          - vds_uplink_name: Uplink 2
+            uplink_name: uplink-2
+        transport_zone_endpoints:
+          - transport_zone_name: nsx-overlay-transportzone
+        ip_assignment_spec:
+          resource_type: StaticIpPoolSpec
+          ip_pool_name: TEP-SITEB-IP-POOL
+
 
 edge_transport_nodes_sitea:
   - display_name: edge-01a
