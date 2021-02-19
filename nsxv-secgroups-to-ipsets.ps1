@@ -4,7 +4,7 @@
 
 param($vc, $vcusr, $vcpsw, $nsx , $nsxusr, $nsxpsw, $sgname)
 
-Connect-VIServer $vc -User $vcuser -Password $vcpsw
+Connect-VIServer $vc -User $vcusr -Password $vcpsw
 
 Connect-NsxServer $nsx -Username $nsxusr -Password $nsxpsw
 
@@ -27,10 +27,8 @@ $Url = $uri + "/api/2.0/services/securitygroup/" + $secGroup.objectId + "/transl
 [xml]$r = Invoke-WebRequest -Uri $Url -Method:Get -Headers $head -Body $body -ContentType "application/xml"
 
 $ipv4name = "ipsv4-" + $secGroup.name
-$ipv6name = "ipsv6-" + $secGroup.name
 
 $ipSetv4 = New-NsxIpSet -name $ipv4name
-$ipSetv6 = New-NsxIpSet -name $ipv6name
 
 foreach ($item in $r.ipNodes.ipNode.ipAddresses ) {
    $ipAddresses = $item.string
@@ -39,13 +37,9 @@ foreach ($item in $r.ipNodes.ipNode.ipAddresses ) {
       $checkifip = [IPAddress] $i.ToString()
       if ( $checkifip.AddressFamily.ToString() -eq "InterNetwork" ) {
          Get-NsxIpSet -objectId $ipSetv4.objectId | Add-NsxIpSetMember -IPAddress ($i.ToString() + "/32")
-      }
-      if ( $checkifip.AddressFamily.ToString() -eq "InterNetworkV6" ) {
-         Get-NsxIpSet -objectId $ipSetv6.objectId | Add-NsxIpSetMember -IPAddress ($i.ToString() + "/128" )
-      }     
+      } 
    }
 }
 
 
 Get-NsxSecurityGroup -objectId $secGroupId |  Add-NsxSecurityGroupMember -Member $ipSetv4
-Get-NsxSecurityGroup -objectId $secGroupId |  Add-NsxSecurityGroupMember -Member $ipSetv6
