@@ -1,0 +1,43 @@
+{
+  "resource_type":"Infra",
+  "children":[
+    {
+      "resource_type":"ChildSegment",
+      "Segment":{
+        "resource_type":"Segment",
+        "id":"siteb-web-test",
+        "description":"overlay siteb-web-test logical switch",
+        "display_name":"siteb-web-test",
+        "overlay_id":"8000",
+        "connectivity_path":"/infra/tier-1s/t1-tenant1",
+        "advanced_config":{
+          "connectivity":"OFF"
+        },
+        "subnets":[
+          {
+            "gateway_address":"172.19.1.1/24"
+          }
+        ]
+      }
+    },
+    {
+      "resource_type":"ChildSegment",
+      "Segment":{
+        "resource_type":"Segment",
+        "id":"siteb-corp-test",
+        "description":"overlay siteb-corp-test logical switch",
+        "display_name":"siteb-corp-test",
+        "overlay_id":"8001",
+        "connectivity_path":"/infra/tier-1s/t1-tenant1",
+        "advanced_config":{
+          "connectivity":"OFF"
+        },
+        "subnets":[
+          {
+            "gateway_address":"172.19.2.1/24"
+          }
+        ]
+      }
+    }
+  ]
+}
