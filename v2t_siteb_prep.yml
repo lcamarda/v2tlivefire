@@ -65,5 +65,29 @@
       with_items:
         - "{{ transport_node_profiles_siteb }}"
 
+    - name: Attach Transport node profile to cluster-03b at Site-B
+      nsxt_transport_node_collections:
+        hostname: "{{ hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        validate_certs: "{{ validate_certs }}"
+        display_name: "TNCSITEB"
+        resource_type: "TransportNodeCollection"
+        description: "Transport Node Collections Hosts"
+        compute_manager_name: "{{compute_managers_siteb[0].display_name}}"
+        cluster_name: "Cluster-03b"
+        transport_node_profile_name: "{{transport_node_profiles_siteb[0].display_name}}"
+        state: present
 
 
+    - name: Create SiteB Segments and connect them to SiteA T0
+      uri:
+        method: PATCH
+        url: "https://{{ hostname }}/policy/api/v1/infra/"
+        user: "{{ username }}"
+        password: "{{ password }}"
+        body: "{{siteb_segments}}"
+        body_format: json
+        force_basic_auth: yes
+        validate_certs: no
+        status_code: 200

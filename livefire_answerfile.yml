@@ -130,7 +130,7 @@ transport_node_profiles_siteb:
           - vds_uplink_name: Uplink 2
             uplink_name: uplink-2
         transport_zone_endpoints:
-          - transport_zone_name: nsx-overlay-transportzone
+          - transport_zone_name: "universalvdnscope.vdnscope-1"
         ip_assignment_spec:
           resource_type: StaticIpPoolSpec
           ip_pool_name: TEP-SITEB-IP-POOL
@@ -343,4 +343,27 @@ sitea_gateways:
                       - ip_addresses:
                           - 192.168.254.20
                         prefix_len: 29
+siteb_segments:
+  resource_type: Infra
+  children:
+    - resource_type: ChildSegment
+      Segment:
+        resource_type: Segment
+        id: siteb-web-test
+        description: overlay siteb-web-test logical switch
+        display_name: siteb-web-test
+        overlay_id: '8000'
+        connectivity_path: /infra/tier-0s/t0_1
+        subnets:
+          - gateway_address: 172.19.1.1/24
+    - resource_type: ChildSegment
+      Segment:
+        resource_type: Segment
+        id: siteb-corp-test
+        description: overlay siteb-corp-test logical switch
+        display_name: siteb-corp-test
+        overlay_id: '8001'
+        connectivity_path: /infra/tier-0s/t0_1
+        subnets:
+          - gateway_address: 172.19.2.1/24
 
