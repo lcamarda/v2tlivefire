@@ -1,16 +1,38 @@
-#!/usr/bin/env python3
-# Disclaimer: This product is not supported by VMware.
-# License: https://github.com/vmware/pyvmomi-community-samples/blob/master/LICENSE
-#Usage example:  python vMotionDL.py -s vcsa-01a.corp.local -u administrator@vsphere.local -p VMware1! -l u-web -n web-01a -e esx-01a.corp.local
+# Copyright 2016-2020 VMware, Inc.
+# SPDX-License-Identifier: BSD-2
+
+# The BSD-2 license (the "License") set forth below applies to this entire script.
+# You may not use this file except in compliance with the License.
+
+# BSD-2 License
+# Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following
+# conditions are met:
+# Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+# Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer
+# in the documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+# BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+# SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# Purpose:  vMotion to a specific VIF
+#
+# Modified version of https://github.com/dixonly/samples/blob/main/vmotion.py to allow using VIF for vMotion during V2T Migration
+# Migration Coordinator's Modular Migration feature.
+# Note:  Excpects resource pool "nsxt" on destination cluster.  This is hard coded and should be fixed at some point.
+#
+
 from pyVim import connect
 from pyVmomi import vim
 from pyVmomi import vmodl
-#from tools import tasks
+
 import atexit
 import argparse
 import subprocess
 import ssl
-import OpenSSL
 
 def parseParameters():
 
@@ -24,7 +46,7 @@ def parseParameters():
                         required=False,
                         action='store',
                         help="Destination VC server name or IP")
-    
+
     parser.add_argument('-u', '--user',
             required=True,
             action='store',
@@ -47,9 +69,6 @@ def parseParameters():
     parser.add_argument('-l', '--network',
                         required=False, nargs="*",
                         help="Destination network")
-    parser.add_argument('-f', '--vif',
-                        required=False,
-                        help="VIF when attaching to NVDS portgroup")
     parser.add_argument("-n", '--name',
             required = False,
             action='store',
@@ -82,7 +101,7 @@ def getObject(inv, vimtype, name, verbose=False):
             pass
     return obj
 
-def setupNetworks(vm, host, networks, vifs=None):
+def setupNetworks(vm, host, networks, vif_id):
     # this requires vsphere 7 API
     nics = []
     for d in vm.config.hardware.device:
@@ -109,19 +128,8 @@ def setupNetworks(vm, host, networks, vifs=None):
             v.backing = vim.vm.device.VirtualEthernetCard.OpaqueNetworkBackingInfo()
             v.backing.opaqueNetworkId = n.summary.opaqueNetworkId
             v.backing.opaqueNetworkType = n.summary.opaqueNetworkType
+            v.externalId = vif_id
 
-            print("Migrating VM %s NIC %d to destination network %s.." %(vm.name, i, v.backing.opaqueNetworkId))
-            # fix issues with older versions of VC that cannot successfully clear VIF
-            if not opaque:
-                if hasattr(v, 'externalId') and v.externalId:
-                    print("resetting vif")
-                    v.externalId = None
-
-            if vifs:
-                v.externalId = vifs[i]
-                print("...with vif %s" %v.externalId)
-                
-                
         elif isinstance(n, vim.DistributedVirtualPortgroup):
             # create dvpg handling
             vdsPgConn = vim.dvs.PortConnection()
@@ -129,11 +137,7 @@ def setupNetworks(vm, host, networks, vifs=None):
             vdsPgConn.switchUuid = n.config.distributedVirtualSwitch.uuid
             v.backing = vim.vm.device.VirtualEthernetCard.DistributedVirtualPortBackingInfo()
             v.backing.port = vdsPgConn
-            print("Migrating VM %s NIC %d to destination dvpg %s on switch %s...." %(vm.name, i, vdsPgConn.portgroupKey, vdsPgConn.switchUuid))
-            if vifs:
-                v.externalId = vifs[i]
-                print("...with vif %s" %v.externalId)
-
+            v.externalId = vif_id
         else:
             v.backing = vim.vm.device.VirtualEthernetCard.NetworkBackingInfo()
             v.backing.network = n
@@ -178,7 +182,7 @@ def main():
             print("Connect to vcenter: %s" %args.destvc)
             atexit.register(connect.Disconnect, di)
 
-    
+
     sinv = si.RetrieveContent()
     sdc = sinv.rootFolder.childEntity[0]
 
@@ -188,7 +192,7 @@ def main():
     else:
         dinv = sinv
         ddc = sdc
-        
+
     relocSpec = vim.vm.RelocateSpec()
     #print(sinv)
     #print(dinv)
@@ -197,23 +201,21 @@ def main():
             print("XV Vmotion requires host, cluster, datastore, and network")
             return None
 
-        cert = ssl.get_server_certificate((args.destvc, 443))
-        x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, cert)
-        thumbprint = x509.digest("SHA1").decode('utf-8')
-        
         up = vim.ServiceLocator.NamePassword(username=args.user, password=password)
         sl = vim.ServiceLocator(credential=up,
                                 instanceUuid=dinv.about.instanceUuid,
-                                url="https://%s" % args.destvc,
-                                sslThumbprint=thumbprint)
+                                url="https://%s" % args.destvc)
         relocSpec.service = sl
 
     vm = getObject(sinv, [vim.VirtualMachine], args.name, verbose=False)
+    rp = getObject(sinv, [vim.ResourcePool], "nsxt")
+    print rp
+
     if not vm:
         print("VM %s not found" %args.name)
         return
     else:
-        print("VM %s %s found" % (vm.name, vm._moId)) 
+        print("VM %s %s found" % (vm.name, vm._moId))
 
     host=None
     if args.server:
@@ -223,7 +225,7 @@ def main():
             return
         else:
             print("Destination host %s found." % host.name)
-                
+
 
     cluster=None
     if  args.cluster:
@@ -242,14 +244,11 @@ def main():
                       %cluster.name)
                 return
 
-            if not host and cluster.resourcePool == vm.resourcePool and sinv == dinv:
+            if not host and cluster.resourcePool == vm.resourcePool:
                 print("Must provide host when migrating within same cluster")
                 return
 
             if not host:
-                if (sinv != dinv):
-                    print("Cross VC migration must specify a host")
-                    return
                 rhost = cluster.RecommendHostsForVm(vm=vm, pool=cluster.resourcePool)
                 if len(rhost) == 0:
                     print("No hosts found in cluster %s from DRS recommendation for migration"
@@ -260,10 +259,11 @@ def main():
                     host = rhost[0].host
     if host:
         relocSpec.host = host
-        
+        relocSpec.pool = rp
     if cluster:
-        relocSpec.pool = cluster.resourcePool
-        
+        #relocSpec.pool = cluster.resourcePool
+        relocSpec.pool = rp
+
     datastore=None
     if args.datastore:
         datastore = getObject(dinv, [vim.Datastore], args.datastore)
@@ -280,15 +280,20 @@ def main():
         network = getObject(dinv, [vim.Network], n, verbose=False)
         if not network:
             print("Network %s not found" % args.network)
-            return 
+            return
         else:
             print("Destination network %s found." % network.name)
             networks.append(network)
 
-    netSpec=setupNetworks(vm, host, networks)
-    relocSpec.deviceChange = netSpec
-    print("Initiating migration of VM %s" %args.name)
-    vm.RelocateVM_Task(spec=relocSpec, priority=vim.VirtualMachine.MovePriority.highPriority)
+    devices = vm.config.hardware.device
+    nic_devices = [device for device in devices if isinstance(device, vim.vm.device.VirtualEthernetCard)]
+    vnic_changes = []
+    for device in nic_devices:
+        vif_id = vm.config.instanceUuid + ":" + str(device.key)
+        netSpec=setupNetworks(vm, host, networks, vif_id)
+        relocSpec.deviceChange = netSpec
+        print("Initiating migration of VM %s" %args.name)
+        vm.RelocateVM_Task(spec=relocSpec, priority=vim.VirtualMachine.MovePriority.highPriority)
 
 if __name__ == "__main__":
     main()
